@@ -1,0 +1,76 @@
+# This is a basic workflow to help you get started with Actions
+
+name: CI-CD
+env:
+  EB_package_S3_bucket_name: "git-test-application-flask-packages"
+  EB_application_name      : "Kursach"
+  EB_environment_name      : "Kursach-env"
+  Deploy_package_name      : "Kursach_app_${{ github.sha }}.zip"
+  AWS_region_name          : "eu-central-1"
+
+# Controls when the action will run. Triggers the workflow on push or pull request
+# events but only for the master branch
+on:
+  push:
+    branches: 
+      - master
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  ci_part:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Git clone repo
+        uses: actions/checkout@v1
+      
+      - name: Check before zip
+        run : ls -la
+      
+      - name: Create zip deployment package
+        run : zip -r ${{ env.Deploy_package_name }} ./ -x *.git*
+      
+      - name: Check after zip
+        run : ls -la
+      
+      - name: config aws credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id    : ${{ secrets.CICD_FLASK_PYTHON_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.CICD_FLASK_PYTHON_SECRET_ACCESS_KEY }}
+          aws-region           : ${{ env.AWS_region_name }}
+
+      
+      - name: Upload deployment package to S3 bucket
+        run : aws s3 cp ${{ env.Deploy_package_name }} s3://${{ env.EB_package_S3_bucket_name }}
+        
+      - name: print msq
+        run : echo "CI Pipeline finished. Congrats:*"
+      
+  cd_part:
+    runs-on: ubuntu-latest
+    needs: [ci_part]
+    
+    steps:
+      - name: config aws credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id    : ${{ secrets.CICD_FLASK_PYTHON_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.CICD_FLASK_PYTHON_SECRET_ACCESS_KEY }}
+          aws-region           : ${{ env.AWS_region_name }}
+      
+      - name: create new Elastic-Beanstalk application
+        run : |
+          aws elasticbeanstalk create-application-version \
+          --application-name ${{ env.EB_application_name }} \
+          --source-bundle S3Bucket="${{ env.EB_package_S3_bucket_name }}",S3Key="${{ env.Deploy_package_name }}" \
+          --version-label "Version_${{ github.sha }}" \
+          --description "CommitSHA_${{ github.sha }}"
+           
+      - name: Deploy new Elastic-Beanstalk application version
+        run: |
+          aws elasticbeanstalk update-environment --environment-name="${{ env.EB_environment_name }}" \
+          --version-label "Version_${{ github.sha }}"
+      
+      - name: print msq
+        run : echo "CD Pipeline finished. Congrats:* New test"
