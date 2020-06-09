@@ -73,4 +73,4 @@ jobs:
           --version-label "Version_${{ github.sha }}"
       
       - name: print msq
-        run : echo "CD Pipeline finished. Congrats:* New test"
+        run : echo "CD Pipeline finished. Congrats:*"
