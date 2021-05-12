@@ -41,7 +41,7 @@
     "prettier": "^1.19.1",
     "shortid": "^2.2.14",
     "siema": "^1.5.1",
-    "swiper": "^5.3.8",
+    "swiper": "^6.5.1",
     "webfonts-loader": "^5.1.1"
   }
 }
